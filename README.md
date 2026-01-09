@@ -2,6 +2,8 @@
 
 A stylish, AI-powered React application that generates git branch names following Git Flow conventions using OpenRouter API.
 
+> ✅ **Deployed to Vercel** - Live at your Vercel deployment URL
+
 ![Branch Name Generator](screenshot.png)
 
 ## Features ✨
