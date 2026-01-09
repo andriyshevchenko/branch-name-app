@@ -1,10 +1,8 @@
 import { useState } from 'react';
-import { OpenRouterService } from './services/openrouter';
 import { BRANCH_TYPES, BranchType } from './types/branch-types';
 import './App.css';
 
 function App() {
-  const [apiKey, setApiKey] = useState<string>(import.meta.env.VITE_OPENROUTER_API_KEY || '');
   const [workItemId, setWorkItemId] = useState<string>('');
   const [description, setDescription] = useState<string>('');
   const [selectedType, setSelectedType] = useState<BranchType>('feature');
@@ -13,14 +11,8 @@ function App() {
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string>('');
   const [copied, setCopied] = useState<boolean>(false);
-  const [showApiKey, setShowApiKey] = useState<boolean>(false);
 
   const handleGenerate = async () => {
-    if (!apiKey.trim()) {
-      setError('Please enter your OpenRouter API key');
-      return;
-    }
-
     if (!description.trim()) {
       setError('Please describe what this branch is for');
       return;
@@ -33,15 +25,26 @@ function App() {
     setCopied(false);
 
     try {
-      const service = new OpenRouterService(apiKey);
-      const result = await service.generateBranchName({
-        description: description.trim(),
-        branchType: selectedType,
-        workItemId: workItemId.trim() || undefined,
+      const response = await fetch('/api/generate-branch-name', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          description: description.trim(),
+          branchType: selectedType,
+          workItemId: workItemId.trim() || undefined,
+        }),
       });
 
-      setGeneratedBranch(result.branchName);
-      setExplanation(result.explanation);
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || 'Failed to generate branch name');
+      }
+
+      const data = await response.json();
+      setGeneratedBranch(data.branchName);
+      setExplanation('Branch name generated successfully!');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to generate branch name');
     } finally {
@@ -78,38 +81,6 @@ function App() {
         </header>
 
         <div className="main-content">
-          {/* API Key Input */}
-          <div className="input-group">
-            <label className="label">
-              <span className="label-icon">🔑</span>
-              OpenRouter API Key
-            </label>
-            <div className="api-key-input-wrapper">
-              <input
-                type={showApiKey ? 'text' : 'password'}
-                value={apiKey}
-                onChange={(e) => setApiKey(e.target.value)}
-                placeholder="Enter your OpenRouter API key..."
-                className="input api-key-input"
-              />
-              <button
-                type="button"
-                className="toggle-visibility-btn"
-                onClick={() => setShowApiKey(!showApiKey)}
-                title={showApiKey ? 'Hide API key' : 'Show API key'}
-              >
-                {showApiKey ? '👁️' : '👁️‍🗨️'}
-              </button>
-            </div>
-            <p className="help-text">
-              Get your free API key at{' '}
-              <a href="https://openrouter.ai/settings/keys" target="_blank" rel="noopener noreferrer">
-                openrouter.ai
-              </a>
-              {import.meta.env.VITE_OPENROUTER_API_KEY && ' (Using environment variable)'}
-            </p>
-          </div>
-
           {/* Work Item ID Input */}
           <div className="input-group">
             <label className="label">
@@ -181,7 +152,7 @@ function App() {
           {/* Generate Button */}
           <button
             onClick={handleGenerate}
-            disabled={isLoading || !apiKey.trim() || !description.trim()}
+            disabled={isLoading || !description.trim()}
             className="generate-btn"
           >
             {isLoading ? (
@@ -225,7 +196,7 @@ function App() {
                 </div>
                 {explanation && (
                   <div className="explanation">
-                    <p className="explanation-label">Why this name?</p>
+                    <p className="explanation-label">Status</p>
                     <p className="explanation-text">{explanation}</p>
                   </div>
                 )}
